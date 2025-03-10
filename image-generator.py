@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications import VGG19
+from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.models import Model
 from tensorflow.keras import backend as K
 from PIL import Image
@@ -25,11 +26,17 @@ class ImageGenerator:
 
         
         print("Generating your image...")
-        self.content_layer = "block5_conv2"
-        self.style_layers = ["block1_conv1", "block2_conv1", "block3_conv1", "block4_conv1", "block5_conv1"]
+        #VGG19 Layers 
+        #self.content_layer = "block5_conv2"
+        #self.style_layers = ["block1_conv1", "block2_conv1", "block3_conv1", "block4_conv1", "block5_conv1"]
+        
+        #MobileNetV2 Layers
+        self.content_layer = "Conv_1"  # Last convolutional layer in MobileNetV2
+        self.style_layers = ["block_1_expand_relu", "block_3_expand_relu", "block_5_expand_relu", "block_7_expand_relu", "block_13_expand_relu"]
 
         #Build and store the VGG19 model
-        self.model = self.build_vgg_model()
+        #self.model = self.build_vgg_model()
+        self.model = self.build_mobilenet_model()
 
         print('Optimizing!\n')
         self.optimization_loop()
@@ -39,7 +46,7 @@ class ImageGenerator:
         Load an image, resize it, convert to an array, and preprocess for VGG19.
         """
         img = Image.open(path)
-        img = img.resize((512, 512))  #Resize for faster processing
+        img = img.resize((256, 256))  #Resize for faster processing
         img = image.img_to_array(img)
         img = np.expand_dims(img, axis=0)
         img = tf.keras.applications.vgg19.preprocess_input(img)
@@ -50,6 +57,15 @@ class ImageGenerator:
 
     def convert_style_img(self):
         return self.load_and_process_image(self.style_img_path)
+
+    def build_mobilenet_model(self):
+        """
+        Use MobileNet model for feature extraction for better speed
+        """
+        mobilenet = MobileNetV2(weights="imagenet", include_top=False)
+        mobilenet.trainable = False 
+        outputs = {layer.name: layer.output for layer in mobilenet.layers}
+        return Model(inputs=mobilenet.input, outputs=outputs)
 
     def build_vgg_model(self):
         """
